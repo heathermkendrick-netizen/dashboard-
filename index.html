@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Recruitment Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #F4F5F7; padding: 20px; }
+  .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); overflow-x: auto; }
+  h2 { color: #172B4D; margin-bottom: 4px; font-size: 18px; }
+  p.sub { color: #6B778C; font-size: 12px; margin-bottom: 16px; }
+
+  /* Month selector */
+  .month-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  .month-btn {
+    padding: 6px 14px; border-radius: 4px; border: 1px solid #DFE1E6;
+    background: #F4F5F7; color: #6B778C; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .month-btn:hover { background: #DEEBFF; border-color: #0052CC; color: #0052CC; }
+  .month-btn.active { background: #0052CC; border-color: #0052CC; color: white; }
+  .month-btn.disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { padding: 10px 8px; text-align: center; color: white; font-weight: 700; white-space: nowrap; background: #172B4D; }
+  th:first-child { text-align: left; padding-left: 12px; }
+
+  .row-strategy td { background: #0052CC; color: white; font-weight: 700; font-size: 13px; cursor: pointer; padding: 10px 8px; text-align: center; }
+  .row-strategy td:first-child { padding: 10px 12px; text-align: left; }
+  .row-region td { background: #DEEBFF; color: #172B4D; font-weight: 700; cursor: pointer; padding: 9px 8px; text-align: center; }
+  .row-region td:first-child { padding: 9px 12px 9px 28px; color: #0052CC; text-align: left; }
+  .row-city td { border-bottom: 1px solid #F4F5F7; padding: 7px 8px; text-align: center; }
+  .row-city td:first-child { padding: 7px 12px 7px 48px; color: #172B4D; text-align: left; }
+  .row-city:nth-child(odd) td { background: white; }
+  .row-city:nth-child(even) td { background: #FAFBFC; }
+
+  .pct-badge { border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700; color: #172B4D; background: #F4F5F7; display: inline-block; border: 1px solid #DFE1E6; }
+  .target-badge { border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700; color: #172B4D; background: #F4F5F7; display: inline-block; border: 1px solid #DFE1E6; white-space: nowrap; }
+  .mom-badge { border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 700; display: inline-block; white-space: nowrap; }
+  .mom-up { background: #E3FCEF; color: #006644; border: 1px solid #ABF5D1; }
+  .mom-down { background: #FFEBE6; color: #BF2600; border: 1px solid #FFBDAD; }
+  .mom-flat { background: #F4F5F7; color: #6B778C; border: 1px solid #DFE1E6; }
+
+  .legend { margin-top: 14px; display: flex; gap: 20px; font-size: 12px; color: #6B778C; flex-wrap: wrap; align-items: center; }
+  .legend strong { color: #172B4D; }
+  .hidden { display: none; }
+  .toggle-icon { display: inline-block; width: 14px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Full Breakdown by Region &amp; Location</h2>
+  <p class="sub">Click a month to view data. MoM shows change in completion % vs previous month.</p>
+
+  <div class="month-bar" id="monthBar"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:210px">Strategy / Region / City</th>
+        <th>Orig Target</th><th>Curr Target</th><th>Open</th><th>Filled</th>
+        <th>Completion %</th><th>vs Orig Target</th><th id="momHeader">MoM</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <div class="legend">
+    <span><strong>vs Orig Target:</strong> +n increased &nbsp;|&nbsp; −n decreased &nbsp;|&nbsp; — unchanged</span>
+    &nbsp;|&nbsp;
+    <span><strong>MoM:</strong> change in completion % vs previous month</span>
+  </div>
+</div>
+
+<script>
+// ─── DATA STORE ───────────────────────────────────────────────────────────────
+// To add a new month, copy the January block, update the label and all numbers.
+const allMonths = [
+  {
+    label: "Jan",
+    data: [
+      {
+        strategy: "Exp Strategic",
+        totals: { o:25, c:54, op:34, f:20, pct:37 },
+        regions: [
+          { name:"APAC", totals:{o:2,c:9,op:5,f:4,pct:44},
+            cities:[{city:"Sydney",o:2,c:7,op:3,f:4,pct:57},{city:"Hong Kong",o:0,c:2,op:2,f:0,pct:0}]},
+          { name:"CRYPTO", totals:{o:0,c:1,op:0,f:1,pct:100},
+            cities:[{city:"Zug",o:0,c:1,op:0,f:1,pct:100}]},
+          { name:"EUR", totals:{o:3,c:4,op:3,f:1,pct:25},
+            cities:[{city:"Amsterdam",o:3,c:3,op:2,f:1,pct:33},{city:"London",o:0,c:1,op:1,f:0,pct:0}]},
+          { name:"GLOBAL BUS OPS", totals:{o:0,c:1,op:1,f:0,pct:0},
+            cities:[{city:"Chicago",o:0,c:1,op:1,f:0,pct:0}]},
+          { name:"GLOBAL TECH", totals:{o:1,c:4,op:1,f:3,pct:75},
+            cities:[{city:"Sydney",o:0,c:1,op:0,f:1,pct:100},{city:"Amsterdam",o:1,c:2,op:1,f:1,pct:50},{city:"New York",o:0,c:1,op:0,f:1,pct:100}]},
+          { name:"IND", totals:{o:5,c:8,op:8,f:0,pct:0},
+            cities:[{city:"Mumbai",o:5,c:8,op:8,f:0,pct:0}]},
+          { name:"US", totals:{o:14,c:29,op:18,f:11,pct:38},
+            cities:[{city:"Chicago",o:13,c:25,op:18,f:7,pct:28},{city:"New York",o:1,c:1,op:0,f:1,pct:100},{city:"Remote US",o:0,c:3,op:0,f:3,pct:100}]}
+        ]
+      },
+      {
+        strategy: "Exp Capacity",
+        totals: { o:383, c:410, op:306, f:104, pct:25 },
+        regions: [
+          { name:"APAC", totals:{o:80,c:84,op:69,f:15,pct:18},
+            cities:[{city:"Sydney",o:57,c:61,op:51,f:10,pct:16},{city:"Hong Kong",o:21,c:21,op:17,f:4,pct:19},{city:"Seoul",o:0,c:1,op:1,f:0,pct:0},{city:"Amsterdam",o:1,c:1,op:0,f:1,pct:100}]},
+          { name:"CRYPTO", totals:{o:41,c:62,op:50,f:12,pct:19},
+            cities:[{city:"Sydney",o:4,c:4,op:4,f:0,pct:0},{city:"Amsterdam",o:7,c:13,op:12,f:1,pct:8},{city:"Zug",o:26,c:40,op:30,f:10,pct:25},{city:"Chicago",o:4,c:4,op:4,f:0,pct:0},{city:"Remote US",o:0,c:1,op:0,f:1,pct:100}]},
+          { name:"EUR", totals:{o:79,c:96,op:62,f:34,pct:35},
+            cities:[{city:"Aarhus",o:20,c:23,op:16,f:7,pct:30},{city:"Amsterdam",o:45,c:56,op:34,f:22,pct:39},{city:"London",o:14,c:17,op:12,f:5,pct:29}]},
+          { name:"GLOBAL BUS OPS", totals:{o:14,c:15,op:10,f:5,pct:33},
+            cities:[{city:"Amsterdam",o:7,c:8,op:4,f:4,pct:50},{city:"London",o:0,c:1,op:1,f:0,pct:0},{city:"Chicago",o:7,c:6,op:5,f:1,pct:17}]},
+          { name:"GLOBAL TECH", totals:{o:26,c:27,op:17,f:10,pct:37},
+            cities:[{city:"Sydney",o:7,c:9,op:6,f:3,pct:33},{city:"Mumbai",o:2,c:2,op:2,f:0,pct:0},{city:"Amsterdam",o:6,c:6,op:3,f:3,pct:50},{city:"Chicago",o:11,c:10,op:6,f:4,pct:40}]},
+          { name:"IND", totals:{o:21,c:22,op:19,f:3,pct:14},
+            cities:[{city:"Mumbai",o:18,c:20,op:17,f:3,pct:15},{city:"London",o:3,c:2,op:2,f:0,pct:0}]},
+          { name:"US", totals:{o:99,c:104,op:79,f:25,pct:24},
+            cities:[{city:"Amsterdam",o:3,c:4,op:2,f:2,pct:50},{city:"London",o:0,c:1,op:0,f:1,pct:100},{city:"Chicago",o:81,c:85,op:63,f:22,pct:26},{city:"New York",o:15,c:14,op:14,f:0,pct:0}]}
+        ]
+      }
+    ]
+  }
+  // ── Paste February block here when ready ──
+  // {
+  //   label: "Feb",
+  //   data: [ ... ]
+  // }
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let activeMonth = 0;
+const expandState = {};
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function targetBadge(orig, curr) {
+  const diff = curr - orig;
+  const label = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : `—`;
+  return `<span class="target-badge">${label}</span>`;
+}
+
+function momBadge(curr, prev) {
+  if (prev === null) return `<span class="mom-badge mom-flat">—</span>`;
+  const diff = curr - prev;
+  if (diff > 0) return `<span class="mom-badge mom-up">+${diff}%</span>`;
+  if (diff < 0) return `<span class="mom-badge mom-down">${diff}%</span>`;
+  return `<span class="mom-badge mom-flat">0%</span>`;
+}
+
+function getPrev(stratIdx, type, regionIdx, cityIdx) {
+  const prevIdx = activeMonth - 1;
+  if (prevIdx < 0 || !allMonths[prevIdx]) return null;
+  const pd = allMonths[prevIdx].data;
+  try {
+    if (type === "strategy") return pd[stratIdx].totals.pct;
+    if (type === "region") return pd[stratIdx].regions[regionIdx].totals.pct;
+    if (type === "city") return pd[stratIdx].regions[regionIdx].cities[cityIdx].pct;
+  } catch(e) { return null; }
+  return null;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function buildMonthBar() {
+  const bar = document.getElementById("monthBar");
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  bar.innerHTML = months.map((m, i) => {
+    const hasData = allMonths.some(md => md.label === m);
+    const isActive = allMonths[activeMonth] && allMonths[activeMonth].label === m;
+    return `<button class="month-btn${isActive ? " active" : ""}${!hasData ? " disabled" : ""}" onclick="setMonth(${allMonths.findIndex(md => md.label === m)})">${m}</button>`;
+  }).join("");
+}
+
+function buildTable() {
+  const tbody = document.getElementById("tbody");
+  const monthData = allMonths[activeMonth].data;
+  let html = "";
+
+  monthData.forEach((s, si) => {
+    const sId = `s${si}`;
+    if (expandState[sId] === undefined) expandState[sId] = true;
+    const sOpen = expandState[sId];
+    const prevPct = getPrev(si, "strategy");
+
+    html += `<tr class="row-strategy" onclick="toggle('${sId}')">
+      <td><span class="toggle-icon">${sOpen ? "▼" : "▶"}</span> ${s.strategy}</td>
+      <td>${s.totals.o}</td><td>${s.totals.c}</td>
+      <td>${s.totals.op}</td><td>${s.totals.f}</td>
+      <td><span class="pct-badge">${s.totals.pct}%</span></td>
+      <td>${targetBadge(s.totals.o, s.totals.c)}</td>
+      <td>${momBadge(s.totals.pct, prevPct)}</td>
+    </tr>`;
+
+    s.regions.forEach((r, ri) => {
+      const rId = `${sId}r${ri}`;
+      if (expandState[rId] === undefined) expandState[rId] = true;
+      const rOpen = expandState[rId];
+      const prevRPct = getPrev(si, "region", ri);
+
+      html += `<tr class="row-region${sOpen ? "" : " hidden"}" id="row-${rId}" onclick="toggle('${rId}')">
+        <td><span class="toggle-icon">${rOpen ? "▼" : "▶"}</span> ${r.name}</td>
+        <td>${r.totals.o}</td><td>${r.totals.c}</td>
+        <td>${r.totals.op}</td><td>${r.totals.f}</td>
+        <td><span class="pct-badge">${r.totals.pct}%</span></td>
+        <td>${targetBadge(r.totals.o, r.totals.c)}</td>
+        <td>${momBadge(r.totals.pct, prevRPct)}</td>
+      </tr>`;
+
+      r.cities.forEach((c, ci) => {
+        const prevCPct = getPrev(si, "city", ri, ci);
+        html += `<tr class="row-city${sOpen && rOpen ? "" : " hidden"}" id="row-${rId}c${ci}">
+          <td>— ${c.city}</td>
+          <td>${c.o}</td><td>${c.c}</td>
+          <td>${c.op}</td><td>${c.f}</td>
+          <td><span class="pct-badge">${c.pct}%</span></td>
+          <td>${targetBadge(c.o, c.c)}</td>
+          <td>${momBadge(c.pct, prevCPct)}</td>
+        </tr>`;
+      });
+    });
+  });
+
+  tbody.innerHTML = html;
+
+  // Update MoM header
+  document.getElementById("momHeader").textContent = activeMonth === 0
+    ? "MoM" : `MoM vs ${allMonths[activeMonth - 1].label}`;
+}
+
+function toggle(id) {
+  expandState[id] = !expandState[id];
+  buildTable();
+}
+
+function setMonth(idx) {
+  if (idx < 0 || !allMonths[idx]) return;
+  activeMonth = idx;
+  buildMonthBar();
+  buildTable();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+buildMonthBar();
+buildTable();
+</script>
+</body>
+</html>
