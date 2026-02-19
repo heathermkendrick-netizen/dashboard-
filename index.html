@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Recruitment Dashboard</title>
+<title>Global Recruitment Dashboard — January 2025</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; }
@@ -12,13 +12,8 @@
   h2 { color: #172B4D; margin-bottom: 4px; font-size: 18px; }
   p.sub { color: #6B778C; font-size: 12px; margin-bottom: 16px; }
 
-  /* Month selector */
   .month-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
-  .month-btn {
-    padding: 6px 14px; border-radius: 4px; border: 1px solid #DFE1E6;
-    background: #F4F5F7; color: #6B778C; font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s;
-  }
+  .month-btn { padding: 6px 14px; border-radius: 4px; border: 1px solid #DFE1E6; background: #F4F5F7; color: #6B778C; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
   .month-btn:hover { background: #DEEBFF; border-color: #0052CC; color: #0052CC; }
   .month-btn.active { background: #0052CC; border-color: #0052CC; color: white; }
   .month-btn.disabled { opacity: 0.35; cursor: default; pointer-events: none; }
@@ -51,17 +46,21 @@
 </head>
 <body>
 <div class="card">
-  <h2>Full Breakdown by Region &amp; Location</h2>
-  <p class="sub">Click a month to view data. MoM shows change in completion % vs previous month.</p>
+  <p class="sub">Click a month to view data. Click a row to expand/collapse. MoM shows change in completion % vs previous month.</p>
 
   <div class="month-bar" id="monthBar"></div>
 
   <table>
     <thead>
       <tr>
-        <th style="width:210px">Strategy / Region / City</th>
-        <th>Orig Target</th><th>Curr Target</th><th>Open</th><th>Filled</th>
-        <th>Completion %</th><th>vs Orig Target</th><th id="momHeader">MoM</th>
+        <th style="width:220px">Strategy / MD Region / City</th>
+        <th>Orig Target</th>
+        <th>Curr Target</th>
+        <th>vs Orig Target</th>
+        <th>Open</th>
+        <th>Filled</th>
+        <th>Completion %</th>
+        <th id="momHeader">MoM</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -75,8 +74,6 @@
 </div>
 
 <script>
-// ─── DATA STORE ───────────────────────────────────────────────────────────────
-// To add a new month, copy the January block, update the label and all numbers.
 const allMonths = [
   {
     label: "Jan",
@@ -124,17 +121,11 @@ const allMonths = [
     ]
   }
   // ── Paste February block here when ready ──
-  // {
-  //   label: "Feb",
-  //   data: [ ... ]
-  // }
 ];
 
-// ─── STATE ────────────────────────────────────────────────────────────────────
 let activeMonth = 0;
 const expandState = {};
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
 function targetBadge(orig, curr) {
   const diff = curr - orig;
   const label = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : `—`;
@@ -149,26 +140,26 @@ function momBadge(curr, prev) {
   return `<span class="mom-badge mom-flat">0%</span>`;
 }
 
-function getPrev(stratIdx, type, regionIdx, cityIdx) {
+function getPrev(si, type, ri, ci) {
   const prevIdx = activeMonth - 1;
   if (prevIdx < 0 || !allMonths[prevIdx]) return null;
   const pd = allMonths[prevIdx].data;
   try {
-    if (type === "strategy") return pd[stratIdx].totals.pct;
-    if (type === "region") return pd[stratIdx].regions[regionIdx].totals.pct;
-    if (type === "city") return pd[stratIdx].regions[regionIdx].cities[cityIdx].pct;
+    if (type === "strategy") return pd[si].totals.pct;
+    if (type === "region") return pd[si].regions[ri].totals.pct;
+    if (type === "city") return pd[si].regions[ri].cities[ci].pct;
   } catch(e) { return null; }
   return null;
 }
 
-// ─── RENDER ───────────────────────────────────────────────────────────────────
 function buildMonthBar() {
   const bar = document.getElementById("monthBar");
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  bar.innerHTML = months.map((m, i) => {
-    const hasData = allMonths.some(md => md.label === m);
-    const isActive = allMonths[activeMonth] && allMonths[activeMonth].label === m;
-    return `<button class="month-btn${isActive ? " active" : ""}${!hasData ? " disabled" : ""}" onclick="setMonth(${allMonths.findIndex(md => md.label === m)})">${m}</button>`;
+  bar.innerHTML = months.map(m => {
+    const idx = allMonths.findIndex(md => md.label === m);
+    const hasData = idx >= 0;
+    const isActive = hasData && idx === activeMonth;
+    return `<button class="month-btn${isActive ? " active" : ""}${!hasData ? " disabled" : ""}" onclick="setMonth(${idx})">${m}</button>`;
   }).join("");
 }
 
@@ -179,42 +170,48 @@ function buildTable() {
 
   monthData.forEach((s, si) => {
     const sId = `s${si}`;
-    if (expandState[sId] === undefined) expandState[sId] = true;
+    if (expandState[sId] === undefined) expandState[sId] = false;
     const sOpen = expandState[sId];
     const prevPct = getPrev(si, "strategy");
 
     html += `<tr class="row-strategy" onclick="toggle('${sId}')">
       <td><span class="toggle-icon">${sOpen ? "▼" : "▶"}</span> ${s.strategy}</td>
-      <td>${s.totals.o}</td><td>${s.totals.c}</td>
-      <td>${s.totals.op}</td><td>${s.totals.f}</td>
-      <td><span class="pct-badge">${s.totals.pct}%</span></td>
+      <td>${s.totals.o}</td>
+      <td>${s.totals.c}</td>
       <td>${targetBadge(s.totals.o, s.totals.c)}</td>
+      <td>${s.totals.op}</td>
+      <td>${s.totals.f}</td>
+      <td><span class="pct-badge">${s.totals.pct}%</span></td>
       <td>${momBadge(s.totals.pct, prevPct)}</td>
     </tr>`;
 
     s.regions.forEach((r, ri) => {
       const rId = `${sId}r${ri}`;
-      if (expandState[rId] === undefined) expandState[rId] = true;
+      if (expandState[rId] === undefined) expandState[rId] = false;
       const rOpen = expandState[rId];
       const prevRPct = getPrev(si, "region", ri);
 
-      html += `<tr class="row-region${sOpen ? "" : " hidden"}" id="row-${rId}" onclick="toggle('${rId}')">
+      html += `<tr class="row-region${sOpen ? "" : " hidden"}" onclick="toggle('${rId}')">
         <td><span class="toggle-icon">${rOpen ? "▼" : "▶"}</span> ${r.name}</td>
-        <td>${r.totals.o}</td><td>${r.totals.c}</td>
-        <td>${r.totals.op}</td><td>${r.totals.f}</td>
-        <td><span class="pct-badge">${r.totals.pct}%</span></td>
+        <td>${r.totals.o}</td>
+        <td>${r.totals.c}</td>
         <td>${targetBadge(r.totals.o, r.totals.c)}</td>
+        <td>${r.totals.op}</td>
+        <td>${r.totals.f}</td>
+        <td><span class="pct-badge">${r.totals.pct}%</span></td>
         <td>${momBadge(r.totals.pct, prevRPct)}</td>
       </tr>`;
 
       r.cities.forEach((c, ci) => {
         const prevCPct = getPrev(si, "city", ri, ci);
-        html += `<tr class="row-city${sOpen && rOpen ? "" : " hidden"}" id="row-${rId}c${ci}">
+        html += `<tr class="row-city${sOpen && rOpen ? "" : " hidden"}">
           <td>— ${c.city}</td>
-          <td>${c.o}</td><td>${c.c}</td>
-          <td>${c.op}</td><td>${c.f}</td>
-          <td><span class="pct-badge">${c.pct}%</span></td>
+          <td>${c.o}</td>
+          <td>${c.c}</td>
           <td>${targetBadge(c.o, c.c)}</td>
+          <td>${c.op}</td>
+          <td>${c.f}</td>
+          <td><span class="pct-badge">${c.pct}%</span></td>
           <td>${momBadge(c.pct, prevCPct)}</td>
         </tr>`;
       });
@@ -222,10 +219,7 @@ function buildTable() {
   });
 
   tbody.innerHTML = html;
-
-  // Update MoM header
-  document.getElementById("momHeader").textContent = activeMonth === 0
-    ? "MoM" : `MoM vs ${allMonths[activeMonth - 1].label}`;
+  document.getElementById("momHeader").textContent = activeMonth === 0 ? "MoM" : `MoM vs ${allMonths[activeMonth - 1].label}`;
 }
 
 function toggle(id) {
@@ -240,7 +234,6 @@ function setMonth(idx) {
   buildTable();
 }
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
 buildMonthBar();
 buildTable();
 </script>
