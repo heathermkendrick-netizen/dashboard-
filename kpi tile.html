@@ -98,7 +98,7 @@ const prev = null;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function momBadge(curr, prev) {
-  if (prev === null) return `<span class="tile-badge badge-flat">First month</span>`;
+  if (prev === null) return ``;
   const diff = curr - prev;
   if (diff > 0) return `<span class="tile-badge badge-up">▲ +${diff} vs last month</span>`;
   if (diff < 0) return `<span class="tile-badge badge-down">▼ ${diff} vs last month</span>`;
@@ -106,7 +106,7 @@ function momBadge(curr, prev) {
 }
 
 function momPctBadge(curr, prev) {
-  if (prev === null) return `<span class="tile-badge badge-flat">First month</span>`;
+  if (prev === null) return ``;
   const diff = curr - prev;
   if (diff > 0) return `<span class="tile-badge badge-up">▲ +${diff}% vs last month</span>`;
   if (diff < 0) return `<span class="tile-badge badge-down">▼ ${diff}% vs last month</span>`;
