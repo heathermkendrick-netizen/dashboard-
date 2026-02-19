@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KPI Tiles</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; background: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 12px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+  }
+
+  .tile {
+    background: white;
+    border: 1px solid #B3D4FF;
+    border-radius: 8px;
+    padding: 16px 12px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 82, 204, 0.08);
+    transition: box-shadow 0.2s;
+  }
+
+  .tile:hover {
+    box-shadow: 0 4px 16px rgba(0, 82, 204, 0.15);
+  }
+
+  .tile-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #0052CC;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    background: #DEEBFF;
+    margin: -16px -12px 10px -12px;
+    padding: 6px 12px;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .tile-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #172B4D;
+    line-height: 1;
+    margin-bottom: 6px;
+    margin-top: 4px;
+  }
+
+  .tile-sub {
+    font-size: 11px;
+    color: #6B778C;
+  }
+
+  .tile-badge {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .badge-up { background: #E3FCEF; color: #006644; border: 1px solid #ABF5D1; }
+  .badge-down { background: #FFEBE6; color: #BF2600; border: 1px solid #FFBDAD; }
+  .badge-flat { background: #F4F5F7; color: #6B778C; border: 1px solid #DFE1E6; }
+
+  .tile-accent-blue { border-top: 3px solid #0052CC; }
+  .tile-accent-teal { border-top: 3px solid #0052CC; }
+  .tile-accent-red { border-top: 3px solid #0052CC; }
+  .tile-accent-green { border-top: 3px solid #0052CC; }
+  .tile-accent-purple { border-top: 3px solid #0052CC; }
+  .tile-accent-orange { border-top: 3px solid #0052CC; }
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+// To update each month, change current values and set prev to last month's values
+const current = {
+  origTarget: 408,   // Total original target
+  currTarget: 464,   // Total current target
+  open: 340,         // Total open
+  filled: 124,       // Total filled
+  completion: 27,    // Overall completion %
+};
+
+// Set to null for January (no previous month). From February onwards set to January's values.
+const prev = null;
+// Example for February:
+// const prev = { origTarget: 408, currTarget: 464, open: 340, filled: 124, completion: 27 };
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function momBadge(curr, prev) {
+  if (prev === null) return `<span class="tile-badge badge-flat">First month</span>`;
+  const diff = curr - prev;
+  if (diff > 0) return `<span class="tile-badge badge-up">▲ +${diff} vs last month</span>`;
+  if (diff < 0) return `<span class="tile-badge badge-down">▼ ${diff} vs last month</span>`;
+  return `<span class="tile-badge badge-flat">— No change</span>`;
+}
+
+function momPctBadge(curr, prev) {
+  if (prev === null) return `<span class="tile-badge badge-flat">First month</span>`;
+  const diff = curr - prev;
+  if (diff > 0) return `<span class="tile-badge badge-up">▲ +${diff}% vs last month</span>`;
+  if (diff < 0) return `<span class="tile-badge badge-down">▼ ${diff}% vs last month</span>`;
+  return `<span class="tile-badge badge-flat">— No change</span>`;
+}
+
+function targetIncrease(orig, curr) {
+  const diff = curr - orig;
+  if (diff > 0) return `<span class="tile-badge badge-up">▲ +${diff} from original</span>`;
+  if (diff < 0) return `<span class="tile-badge badge-down">▼ ${diff} from original</span>`;
+  return `<span class="tile-badge badge-flat">— Unchanged</span>`;
+}
+
+// ── BUILD TILES ───────────────────────────────────────────────────────────────
+const tiles = [
+  {
+    label: "Original Target",
+    value: current.origTarget,
+    sub: "Headcount at plan start",
+    badge: null,
+    accent: "tile-accent-blue"
+  },
+  {
+    label: "Current Target",
+    value: current.currTarget,
+    sub: "Headcount target today",
+    badge: null,
+    accent: "tile-accent-teal"
+  },
+  {
+    label: "Target Increase",
+    value: `+${current.currTarget - current.origTarget}`,
+    sub: "Roles added since plan",
+    badge: targetIncrease(current.origTarget, current.currTarget),
+    accent: "tile-accent-orange"
+  },
+  {
+    label: "Open Roles",
+    value: current.open,
+    sub: "Yet to be filled",
+    badge: momBadge(current.open, prev ? prev.open : null),
+    accent: "tile-accent-red"
+  },
+  {
+    label: "Filled",
+    value: current.filled,
+    sub: "Roles successfully hired",
+    badge: momBadge(current.filled, prev ? prev.filled : null),
+    accent: "tile-accent-green"
+  },
+  {
+    label: "Completion",
+    value: `${current.completion}%`,
+    sub: "Of current target filled",
+    badge: momPctBadge(current.completion, prev ? prev.completion : null),
+    accent: "tile-accent-purple"
+  }
+];
+
+document.getElementById("grid").innerHTML = tiles.map(t => `
+  <div class="tile ${t.accent}">
+    <div class="tile-label">${t.label}</div>
+    <div class="tile-value">${t.value}</div>
+    <div class="tile-sub">${t.sub}</div>
+    ${t.badge ? t.badge : ""}
+  </div>
+`).join("");
+</script>
+</body>
+</html>
